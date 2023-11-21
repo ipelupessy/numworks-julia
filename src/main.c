@@ -17,6 +17,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <complex.h>
+#include <math.h>
 
 const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "Julia";
 const uint32_t eadk_api_level  __attribute__((section(".rodata.eadk_api_level"))) = 0;
@@ -34,6 +35,7 @@ const uint32_t eadk_api_level  __attribute__((section(".rodata.eadk_api_level"))
 #define SCREEN_RATIO (SCREEN_HEIGHT/(float) SCREEN_WIDTH)
 
 #define SIGN(x) (((x) < 0) ? (-1) : (1))
+#define CSIGN(x) (((x) < 0) ? ("-") : (" "))
 
 struct viewport 
 {
@@ -128,7 +130,6 @@ struct tile_update get_update_tiles(update_mode mode)
 void julia(float complex c, int Niteration, struct viewport *vw, update_mode mode)
 {
   eadk_color_t tile[TILESIZE*TILESIZE];
-  move_fb(vw,mode);
   struct tile_update tu=get_update_tiles(mode);
   float complex z;
   int i;
@@ -158,7 +159,6 @@ void julia(float complex c, int Niteration, struct viewport *vw, update_mode mod
 void mandelbrot(int Niteration, struct viewport *vw, update_mode mode)
 {
   eadk_color_t tile[TILESIZE*TILESIZE];
-  move_fb(vw,mode);
   struct tile_update tu=get_update_tiles(mode);
   float complex z,c;
   int i;
@@ -194,10 +194,11 @@ void show_cursor(struct cursor *c)
 {
   eadk_display_pull_rect((eadk_rect_t){c->x-2,c->y-2+YOFF,5,5}, c->orgbuf);
   eadk_display_pull_rect((eadk_rect_t){c->x-2,c->y-2+YOFF,5,5}, c->buf);
-  c->buf[2]=0;c->buf[7]=0;
-  c->buf[10]=0;c->buf[11]=0;
-  c->buf[13]=0;c->buf[14]=0;
-  c->buf[17]=0;c->buf[22]=0;
+  c->buf[2]=eadk_color_white;c->buf[7]=eadk_color_white;
+  c->buf[10]=eadk_color_white;c->buf[11]=eadk_color_white;
+  c->buf[12]=eadk_color_white;
+  c->buf[13]=eadk_color_white;c->buf[14]=eadk_color_white;
+  c->buf[17]=eadk_color_white;c->buf[22]=eadk_color_white;
   eadk_display_push_rect((eadk_rect_t){c->x-2,c->y-2+YOFF,5,5}, c->buf);
 
 }
@@ -208,16 +209,40 @@ float complex c_from_cursor(struct cursor *c, struct viewport *vw)
           (vw->yc+SCREEN_RATIO*vw->width/2-(SCREEN_RATIO*vw->width*c->y)/SCREEN_HEIGHT)*I;
 }
 
+void mygcvt(float x, int ndig, char * buf)
+{
+  float _x, f, i;
+  _x=x*SIGN(x);
+  f=modff(_x,&i);
+  sprintf(buf,"%s%1d.%04d", CSIGN(x), (int) i, (int) (10000*f));
+} // so we can use nano.spec
+
+void show_status(float complex c, int Niterations)
+{
+  char msg[128], buf1[8],buf2[8];
+  float cr=crealf(c), ci=cimagf(c);
+  eadk_display_push_rect_uniform((eadk_rect_t){0,220,EADK_SCREEN_WIDTH,20}, eadk_color_black);  
+  mygcvt(cr,4,buf1);
+  mygcvt(ci,4,buf2);
+  sprintf(msg, "c=%s+%sI,  Nit=%4d", buf1, buf2, Niterations);
+  eadk_display_draw_string(msg, (eadk_point_t){160-(int)(3.5*strlen(msg)), 222}, false, 0xfda6, eadk_color_black);
+  
+}
+
 void mainloop() {
-  struct viewport vw=defaultview;
+  int Niterations=100;
+  struct viewport vw=defaultview, jvw;
   struct cursor c={.x=SCREEN_WIDTH/2 ,.y=SCREEN_HEIGHT/2, .buf={0}};
   update_mode mode;
   statuslinemsg("Julia Explorer");
   bool show_julia=false;
   float complex cconst=c_from_cursor(&c, &vw);
 
-  mandelbrot(100,&vw,REFRESH);
+  mandelbrot(Niterations,&vw,REFRESH);
   show_cursor(&c);
+  cconst=c_from_cursor(&c, &vw);
+  show_status(cconst, Niterations);
+
   while (true) 
   {
     int32_t timeout = 1000;
@@ -247,21 +272,34 @@ void mainloop() {
         vw.width*=SQRT2;
         mode=REFRESH;
         break;
+      case eadk_event_multiplication:
+        Niterations*=1.2;
+        if(Niterations>1000) Niterations=1000;
+        mode=REFRESH;
+        break;
+      case eadk_event_division:
+        Niterations/=1.2;
+        if(Niterations<30) Niterations=30;
+        mode=REFRESH;
+        break;
+      case eadk_event_ok:  
       case eadk_event_back:
         show_julia=!show_julia;
-        if(show_julia) cconst=c_from_cursor(&c, &vw);
-        vw=defaultview;
+        jvw=defaultview;
         mode=REFRESH;
     }
     if(mode != NONE) 
     {
       hide_cursor(&c);
+      move_fb(&vw,mode);
 
+      cconst=c_from_cursor(&c, &vw);
       if(show_julia)
-        julia(cconst,100,&vw, mode);
+        julia(cconst,Niterations,&jvw, mode);
       else
-        mandelbrot(100,&vw,mode);
+        mandelbrot(Niterations,&vw,mode);
       show_cursor(&c);
+      show_status(cconst, Niterations);
     }
     
   }
