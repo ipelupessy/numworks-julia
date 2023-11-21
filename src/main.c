@@ -231,16 +231,19 @@ void show_status(float complex c, int Niterations)
 
 void mainloop() {
   int Niterations=100;
-  struct viewport vw=defaultview, jvw;
+  struct viewport *vw;
+  struct viewport mvw=defaultview, jvw=defaultview;
   struct cursor c={.x=SCREEN_WIDTH/2 ,.y=SCREEN_HEIGHT/2, .buf={0}};
   update_mode mode;
   statuslinemsg("Julia Explorer");
   bool show_julia=false;
-  float complex cconst=c_from_cursor(&c, &vw);
+  vw=&mvw;
 
-  mandelbrot(Niterations,&vw,REFRESH);
+  float complex cconst=c_from_cursor(&c, vw);
+
+  mandelbrot(Niterations,vw,REFRESH);
   show_cursor(&c);
-  cconst=c_from_cursor(&c, &vw);
+  cconst=c_from_cursor(&c, &mvw);
   show_status(cconst, Niterations);
 
   while (true) 
@@ -265,11 +268,11 @@ void mainloop() {
         mode=DOWN;
         break;
       case eadk_event_plus:
-        vw.width/=SQRT2;
+        vw->width/=SQRT2;
         mode=REFRESH;
         break;
       case eadk_event_minus:
-        vw.width*=SQRT2;
+        vw->width*=SQRT2;
         mode=REFRESH;
         break;
       case eadk_event_multiplication:
@@ -288,20 +291,22 @@ void mainloop() {
         jvw=defaultview;
         mode=REFRESH;
     }
+    if(show_julia)
+      vw=&jvw;
+    else
+      vw=&mvw;
     if(mode != NONE) 
     {
       hide_cursor(&c);
-      move_fb(&vw,mode);
-
-      cconst=c_from_cursor(&c, &vw);
+      move_fb(vw,mode);
+      cconst=c_from_cursor(&c, &mvw);
       if(show_julia)
-        julia(cconst,Niterations,&jvw, mode);
+        julia(cconst,Niterations,vw, mode);
       else
-        mandelbrot(Niterations,&vw,mode);
+        mandelbrot(Niterations,vw, mode);
       show_cursor(&c);
       show_status(cconst, Niterations);
     }
-    
   }
 }
 
