@@ -277,7 +277,7 @@ void mainloop() {
         break;
       case eadk_event_multiplication:
         Niterations*=1.2;
-        if(Niterations>1000) Niterations=1000;
+        if(Niterations>9999) Niterations=9999;
         mode=REFRESH;
         break;
       case eadk_event_division:
@@ -286,10 +286,14 @@ void mainloop() {
         mode=REFRESH;
         break;
       case eadk_event_ok:  
-      case eadk_event_back:
         show_julia=!show_julia;
         jvw=defaultview;
         mode=REFRESH;
+        break;
+      case eadk_event_back:
+        *vw=defaultview;
+        mode=REFRESH;
+        break;
     }
     if(show_julia)
       vw=&jvw;
