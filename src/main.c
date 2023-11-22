@@ -61,7 +61,7 @@ struct tile_update
 void statuslinemsg(const char * msg) {
   uint16_t c=0xfda6;
   eadk_display_push_rect_uniform((eadk_rect_t){0,0,320,18}, c);
-  eadk_display_draw_string(msg, (eadk_point_t){160-5*strlen(msg), 0}, true, eadk_color_white, c);
+  eadk_display_draw_string(msg, (eadk_point_t){160-(int)(3.5*strlen(msg)), 0}, false, eadk_color_white, c);
 }
 
 void bottommsg(const char * msg)
@@ -235,7 +235,7 @@ void mainloop() {
   struct viewport mvw=defaultview, jvw=defaultview;
   struct cursor c={.x=SCREEN_WIDTH/2 ,.y=SCREEN_HEIGHT/2, .buf={0}};
   update_mode mode;
-  statuslinemsg("Julia Explorer");
+  statuslinemsg("JULIA EXPLORER");
   bool show_julia=false;
   vw=&mvw;
 
